@@ -1,0 +1,21 @@
+# Binaries
+bin/
+gym-manager-v2
+web
+
+# Database
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Frontend dependencies
+frontend/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
