@@ -1,0 +1,303 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>{{.Title}} — Gym Manager</title>
+    <script src="/static/htmx.min.js"></script>
+    <meta name="htmx-config" content='{"defaultSwapStyle":"innerHTML","selfRequestsOnly":true}'>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; }
+        nav { background: #1e293b; padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 2rem; border-bottom: 1px solid #334155; }
+        nav .brand { font-size: 1.25rem; font-weight: 700; color: #f8fafc; }
+        nav a { color: #94a3b8; text-decoration: none; padding: 0.5rem 1rem; border-radius: 6px; transition: all 0.15s; }
+        nav a:hover, nav a.active { color: #f8fafc; background: #334155; }
+        main { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        h1 { font-size: 1.5rem; margin-bottom: 1rem; color: #f8fafc; }
+        .toolbar { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; }
+        input[type="search"], input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="date"], textarea, select {
+            background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 0.5rem 0.75rem;
+            border-radius: 6px; font-size: 0.9rem; outline: none; transition: border-color 0.15s;
+        }
+        input:focus, textarea:focus, select:focus { border-color: #60a5fa; }
+        input[type="search"] { width: 300px; }
+        textarea { width: 100%; min-height: 80px; resize: vertical; }
+        .btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 500; transition: all 0.15s; }
+        .btn-primary { background: #3b82f6; color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-ghost { background: transparent; color: #94a3b8; border: 1px solid #334155; }
+        .btn-ghost:hover { color: #f8fafc; border-color: #60a5fa; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 0.75rem; color: #94a3b8; font-weight: 500; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #334155; }
+        td { padding: 0.75rem; border-bottom: 1px solid #1e293b; }
+        tr:hover td { background: #1e293b; }
+        tr { cursor: pointer; }
+        .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 500; }
+        .badge-ok { background: #065f46; color: #6ee7b7; }
+        .badge-warn { background: #78350f; color: #fbbf24; }
+        .count { color: #64748b; font-size: 0.9rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.25rem; color: #94a3b8; font-size: 0.85rem; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; }
+        .form-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .card { background: #1e293b; border-radius: 8px; padding: 1.5rem; border: 1px solid #334155; }
+        .detail-grid { display: grid; grid-template-columns: 120px 1fr; gap: 0.5rem 1rem; }
+        .detail-grid dt { color: #64748b; font-size: 0.85rem; }
+        .detail-grid dd { color: #e2e8f0; }
+        .actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+        .htmx-indicator { display: none; }
+        .htmx-request .htmx-indicator { display: inline; }
+        .empty { text-align: center; padding: 3rem; color: #64748b; }
+    </style>
+</head>
+<body>
+    <nav>
+        <span class="brand">💪 Gym Manager</span>
+        <a href="/" hx-get="/" hx-target="#content" hx-push-url="true">Dashboard</a>
+        <a href="/clients" hx-get="/clients" hx-target="#content" hx-push-url="true">Klienci</a>
+        <a href="/membership-types" hx-get="/membership-types" hx-target="#content" hx-push-url="true">Karnety</a>
+        <a href="/entries" hx-get="/entries" hx-target="#content" hx-push-url="true">Wejścia</a>
+        <a href="/payments/overdue" hx-get="/payments/overdue" hx-target="#content" hx-push-url="true">Zaległości</a>
+        <a href="/users" hx-get="/users" hx-target="#content" hx-push-url="true">Użytkownicy</a>
+        <a href="/audit" hx-get="/audit" hx-target="#content" hx-push-url="true">Audit</a>
+        <a href="/backup" hx-get="/backup" hx-target="#content" hx-push-url="true">Backup</a>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:1rem;">
+            {{if .User}}<span style="color:#64748b; font-size:0.85rem;">{{.User.Name}} ({{.User.Role}})</span>{{end}}
+            <a href="/logout" hx-post="/logout" style="color:#94a3b8; font-size:0.85rem;">Wyloguj</a>
+        </div>
+    </nav>
+    <main>
+        <div id="content">
+            {{callTemplate .ContentTemplate .}}
+        </div>
+    </main>
+
+    <!-- RFID scan toast notifications -->
+    <div id="rfid-toasts" style="position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; display:flex; flex-direction:column; justify-content:flex-end; gap:0.5rem; max-height:80vh; pointer-events:none;"></div>
+
+    <style>
+    .rfid-toast {
+        padding: 0.75rem 1.25rem;
+        border-radius: 8px;
+        color: #fff;
+        font-weight: 600;
+        font-size: 0.95rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        pointer-events: auto;
+        animation: toast-in 0.3s ease-out;
+        transition: opacity 0.3s, transform 0.3s;
+        max-width: 360px;
+    }
+    .rfid-toast:hover { transform: scale(1.02); }
+    .rfid-toast.ok { background: #16a34a; }
+    .rfid-toast.no_active_membership { background: #dc2626; }
+    .rfid-toast.membership_frozen { background: #0ea5e9; }
+    .rfid-toast.unknown_tag { background: #dc2626; }
+    .rfid-toast.assigned { background: #2563eb; }
+    .rfid-toast.tag_in_use { background: #9333ea; }
+    .rfid-toast.fade-out { opacity: 0; transform: translateX(100px); }
+
+    /* Alert modal */
+    .rfid-alert-overlay {
+        position: fixed; inset: 0; z-index: 99999;
+        background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+        display: flex; align-items: center; justify-content: center;
+        animation: fade-in 0.2s ease-out;
+    }
+    .rfid-alert-modal {
+        background: #fff; border-radius: 12px; padding: 2rem;
+        max-width: 480px; width: 90%; box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+        text-align: center; animation: modal-in 0.3s ease-out;
+    }
+    .rfid-alert-header {
+        font-size: 1.3rem; font-weight: 700; color: #92400e;
+        margin-bottom: 1rem; border-bottom: 2px solid #f59e0b; padding-bottom: 0.75rem;
+    }
+    .rfid-alert-body {
+        font-size: 1.15rem; color: #1e293b; line-height: 1.6;
+        padding: 1rem 0; background: #fef3c7; border-radius: 8px;
+        padding: 1rem; margin-bottom: 1.5rem; font-weight: 600;
+    }
+    .rfid-alert-close {
+        background: #f59e0b; color: #fff; border: none; border-radius: 8px;
+        padding: 0.75rem 2rem; font-size: 1rem; font-weight: 600;
+        cursor: pointer; transition: background 0.2s;
+    }
+    .rfid-alert-close:hover { background: #d97706; }
+    @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes modal-in { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    @keyframes toast-in {
+        from { opacity: 0; transform: translateX(100px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+    </style>
+
+    <script>
+    // Abort previous in-flight request targeting #content
+    (function() {
+        var activeXhr = null;
+        document.addEventListener('htmx:beforeRequest', function(e) {
+            if (e.detail.target && e.detail.target.id === 'content') {
+                if (activeXhr && activeXhr.readyState < 4) {
+                    activeXhr.abort();
+                }
+                activeXhr = e.detail.xhr;
+            }
+        });
+        document.addEventListener('htmx:afterRequest', function(e) {
+            if (e.detail.xhr === activeXhr) {
+                activeXhr = null;
+            }
+        });
+    })();
+    </script>
+
+    <script>
+    (function() {
+        var es = new EventSource('/api/rfid/events');
+        var container = document.getElementById('rfid-toasts');
+
+        es.addEventListener('scan', function(e) {
+            var ev = JSON.parse(e.data);
+            if (ev.status === 'error') return;
+
+            // Deduplicate: don't show if toast for same client already visible
+            if (ev.client_id) {
+                var existing = document.querySelector('.rfid-toast[data-client-id="' + ev.client_id + '"]');
+                if (existing) return;
+            }
+
+            var toast = document.createElement('div');
+            toast.className = 'rfid-toast ' + ev.status;
+            if (ev.client_id) toast.setAttribute('data-client-id', ev.client_id);
+
+            var icon = {ok:'✅', no_active_membership:'⚠️', membership_frozen:'❄️', unknown_tag:'❌', assigned:'🏷️', tag_in_use:'🚫'}[ev.status] || 'ℹ️';
+
+            var link = document.createElement('a');
+            link.href = ev.client_id ? '/clients/' + ev.client_id : '#';
+            link.setAttribute('hx-get', ev.client_id ? '/clients/' + ev.client_id : '');
+            link.setAttribute('hx-target', '#content');
+            link.setAttribute('hx-push-url', 'true');
+            link.style.cssText = 'color:inherit; text-decoration:none; flex:1;';
+            link.textContent = icon + ' ' + ev.message;
+
+            var closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕';
+            closeBtn.style.cssText = 'background:none; border:none; color:inherit; font-size:1.2rem; cursor:pointer; padding:0.25rem 0.5rem; opacity:0.8; position:relative; z-index:1; flex-shrink:0;';
+            closeBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); toast.remove(); });
+
+            toast.appendChild(link);
+            toast.appendChild(closeBtn);
+            container.appendChild(toast);
+            htmx.process(link);
+
+            // Assigned/tag_in_use: update the rfid-area if visible
+            if (ev.status === 'assigned') {
+                var area = document.getElementById('rfid-area');
+                if (area) {
+                    area.innerHTML = '🏷 ' + ev.tag +
+                        ' <button hx-post="/api/rfid/assign/' + ev.client_id + '" hx-target="#rfid-area" hx-swap="innerHTML"' +
+                        ' class="btn" style="margin-left:0.5rem; font-size:0.8rem; padding:0.2rem 0.6rem;">🔄 Zmień tag</button>';
+                    htmx.process(area);
+                }
+            } else if (ev.status === 'tag_in_use') {
+                var area = document.getElementById('rfid-area');
+                if (area) {
+                    area.innerHTML = '<span style="color:#ef4444;">🚫 ' + ev.message + '</span>';
+                    setTimeout(function() {
+                        area.innerHTML = '<button hx-post="/api/rfid/assign/' + ev.client_id + '" hx-target="#rfid-area" hx-swap="innerHTML"' +
+                            ' class="btn" style="font-size:0.8rem; padding:0.2rem 0.6rem;">🏷 Przypisz tag</button>';
+                        htmx.process(area);
+                    }, 5000);
+                }
+            }
+
+            // Alert note — modal na środku ekranu
+            if (ev.alert_note) {
+                var overlay = document.createElement('div');
+                overlay.className = 'rfid-alert-overlay';
+                overlay.onclick = function() { overlay.remove(); };
+
+                var modal = document.createElement('div');
+                modal.className = 'rfid-alert-modal';
+                modal.onclick = function(e) { e.stopPropagation(); };
+
+                modal.innerHTML = '<div class="rfid-alert-header">⚠️ Uwaga — ' +
+                    ev.client_name + '</div><div class="rfid-alert-body">' +
+                    ev.alert_note.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>';
+                var okBtn = document.createElement('button');
+                okBtn.className = 'rfid-alert-close';
+                okBtn.textContent = 'OK, rozumiem';
+                okBtn.addEventListener('click', function() { overlay.remove(); });
+                modal.appendChild(okBtn);
+
+                overlay.appendChild(modal);
+                document.body.appendChild(overlay);
+            }
+
+            var timeout = (ev.status === 'ok' || ev.status === 'no_active_membership' || ev.status === 'membership_frozen') ? 120000 : 10000;
+            setTimeout(function() {
+                toast.classList.add('fade-out');
+                setTimeout(function() { toast.remove(); }, 300);
+            }, timeout);
+        });
+    })();
+    </script>
+</body>
+</html>
+{{end}}
+
+{{define "layout_form"}}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>{{.Title}} — Gym Manager</title>
+    <script src="/static/htmx.min.js"></script>
+    <!-- same styles as layout -->
+</head>
+<body>
+    <nav>
+        <span class="brand">💪 Gym Manager</span>
+        <a href="/clients" hx-get="/clients" hx-target="#content" hx-push-url="true">Klienci</a>
+    </nav>
+    <main>
+        <div id="content">
+            {{template "client_form" .}}
+        </div>
+    </main>
+</body>
+</html>
+{{end}}
+
+{{define "layout_detail"}}
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>{{.Title}} — Gym Manager</title>
+    <script src="/static/htmx.min.js"></script>
+</head>
+<body>
+    <nav>
+        <span class="brand">💪 Gym Manager</span>
+        <a href="/clients" hx-get="/clients" hx-target="#content" hx-push-url="true">Klienci</a>
+    </nav>
+    <main>
+        <div id="content">
+            {{template "client_detail" .}}
+        </div>
+    </main>
+</body>
+</html>
+{{end}}

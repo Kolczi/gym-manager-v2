@@ -1,0 +1,33 @@
+{{define "backup_list"}}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+    <h2 style="margin:0;">Backup bazy danych</h2>
+    <button hx-post="/backup" hx-swap="none" style="background:#22c55e; color:#fff; border:none; padding:0.6rem 1.2rem; border-radius:6px; cursor:pointer; font-size:0.95rem;">
+        ⬇ Utwórz backup
+    </button>
+</div>
+
+<p style="color:#64748b; font-size:0.85rem; margin-bottom:1rem;">Katalog: {{.Dir}}</p>
+
+{{if .Backups}}
+<table>
+    <thead>
+        <tr>
+            <th>Data</th>
+            <th>Plik</th>
+            <th>Rozmiar</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Backups}}
+        <tr>
+            <td>{{.Date}}</td>
+            <td style="font-family:monospace; font-size:0.85rem;">{{.Name}}</td>
+            <td>{{.Size}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p style="color:#94a3b8;">Brak backupów. Kliknij przycisk powyżej aby utworzyć pierwszy.</p>
+{{end}}
+{{end}}

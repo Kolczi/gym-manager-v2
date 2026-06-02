@@ -1,0 +1,94 @@
+
+{{define "mt_list"}}
+<h1>Karnety <span class="count">({{.Count}})</span></h1>
+<div class="toolbar">
+    <a class="btn btn-primary" href="/membership-types/new"
+       hx-get="/membership-types/new" hx-target="#content" hx-push-url="true">+ Nowy karnet</a>
+</div>
+<table>
+    <thead>
+        <tr>
+            <th>Nazwa</th>
+            <th>Czas trwania</th>
+            <th>Cena</th>
+            <th>Umowa</th>
+            <th>Zawieszenie</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Types}}
+        <tr hx-get="/membership-types/{{.ID}}/edit" hx-target="#content" hx-push-url="true" style="cursor:pointer;">
+            <td>{{.Name}}</td>
+            <td>{{.DurationValue}} {{if eq .DurationUnit "day"}}dni{{else if eq .DurationUnit "month"}}mies.{{else}}lat{{end}}</td>
+            <td>{{formatPrice .Price}} zł</td>
+            <td>{{if .IsContract.Bool}}Tak{{else}}Nie{{end}}</td>
+            <td>{{if gt .MaxFreezeDays 0}}do {{.MaxFreezeDays}} dni{{else}}<span style="color:#64748b;">—</span>{{end}}</td>
+            <td>{{if .IsActive.Bool}}<span style="color:#4ade80;">Aktywny</span>{{else}}<span style="color:#f87171;">Nieaktywny</span>{{end}}</td>
+        </tr>
+        {{else}}
+        <tr><td colspan="6" style="text-align:center; color:#64748b; padding:2rem;">Brak karnetów</td></tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}
+
+{{define "mt_form"}}
+<h1>{{.Title}}</h1>
+<form method="POST"
+    {{if .IsNew}}
+      action="/membership-types" hx-post="/membership-types"
+    {{else}}
+      action="/membership-types/{{.MT.ID}}" hx-put="/membership-types/{{.MT.ID}}"
+    {{end}}
+    hx-target="#content">
+
+    <div class="form-group">
+        <label for="name">Nazwa *</label>
+        <input type="text" id="name" name="name" value="{{.MT.Name}}" required/>
+    </div>
+    <div class="form-group">
+        <label for="description">Opis</label>
+        <textarea id="description" name="description" rows="2">{{if .MT.Description.Valid}}{{.MT.Description.String}}{{end}}</textarea>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label for="duration_value">Czas trwania *</label>
+            <input type="number" id="duration_value" name="duration_value" value="{{.MT.DurationValue}}" min="1" required/>
+        </div>
+        <div class="form-group">
+            <label for="duration_unit">Jednostka *</label>
+            <select id="duration_unit" name="duration_unit">
+                <option value="day" {{if eq .MT.DurationUnit "day"}}selected{{end}}>Dni</option>
+                <option value="month" {{if eq .MT.DurationUnit "month"}}selected{{end}}>Miesiące</option>
+                <option value="year" {{if eq .MT.DurationUnit "year"}}selected{{end}}>Lata</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-group">
+        <label for="price">Cena (zł) *</label>
+        <input type="number" id="price" name="price" value="{{formatPrice .MT.Price}}" step="0.01" min="0" required/>
+    </div>
+    <div class="form-group">
+        <label for="max_freeze_days">Maks. dni zawieszenia (0 = brak)</label>
+        <input type="number" id="max_freeze_days" name="max_freeze_days" value="{{.MT.MaxFreezeDays}}" min="0"/>
+    </div>
+    <div class="form-row">
+        <div class="form-group">
+            <label><input type="checkbox" name="is_contract" {{if .MT.IsContract.Bool}}checked{{end}}/> Wymaga umowy</label>
+        </div>
+        <div class="form-group">
+            <label><input type="checkbox" name="is_active" {{if .MT.IsActive.Bool}}checked{{end}}/> Aktywny</label>
+        </div>
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{if .IsNew}}Dodaj{{else}}Zapisz{{end}}</button>
+        <a href="/membership-types" hx-get="/membership-types" hx-target="#content" hx-push-url="true" class="btn">Anuluj</a>
+        {{if not .IsNew}}
+        <button type="button" class="btn btn-danger"
+            hx-delete="/membership-types/{{.MT.ID}}" hx-target="#content"
+            hx-confirm="Na pewno usunąć ten karnet?">Usuń</button>
+        {{end}}
+    </div>
+</form>
+{{end}}

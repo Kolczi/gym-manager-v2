@@ -1,0 +1,26 @@
+[Unit]
+Description=Gym Manager Web Server
+After=network.target
+
+[Service]
+Type=simple
+User=gym-manager
+Group=gym-manager
+WorkingDirectory=/opt/gym-manager
+ExecStart=/opt/gym-manager/bin/gym-web
+EnvironmentFile=/opt/gym-manager/.env
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gym-manager
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/gym-manager /var/backups/gym-manager
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,276 @@
+
+{{define "client_list"}}
+<h1>Klienci <span class="count">({{.Count}})</span></h1>
+<div class="toolbar">
+    <input type="search" name="q" placeholder="Szukaj klienta..."
+           hx-get="/clients/search" hx-trigger="input changed delay:300ms, search"
+           hx-target="#client-table" hx-indicator="#search-indicator"/>
+    <span id="search-indicator" class="htmx-indicator">🔍</span>
+    <a href="/clients/new" hx-get="/clients/new" hx-target="#content" hx-push-url="true" class="btn btn-primary">+ Dodaj klienta</a>
+</div>
+<div id="client-table">
+    {{template "client_table" .}}
+</div>
+{{end}}
+
+{{define "client_table"}}
+{{if .Clients}}
+<table>
+    <thead>
+        <tr>
+            <th>Nazwisko</th>
+            <th>Imię</th>
+            <th>Telefon</th>
+            <th>Email</th>
+            <th>RFID</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Clients}}
+        <tr hx-get="/clients/{{.ID}}" hx-target="#content" hx-push-url="true">
+            <td>{{.Surname}}</td>
+            <td>{{.Name}}</td>
+            <td>{{if .Phone.Valid}}{{.Phone.String}}{{else}}—{{end}}</td>
+            <td>{{if .Email.Valid}}{{.Email.String}}{{else}}—{{end}}</td>
+            <td>{{if .RfidTag.Valid}}<span class="badge badge-ok">✓</span>{{else}}<span class="badge badge-warn">brak</span>{{end}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<div class="empty">Brak klientów{{if .Query}} pasujących do "{{.Query}}"{{end}}</div>
+{{end}}
+{{end}}
+
+{{define "client_form"}}
+<h1>{{if .IsNew}}Nowy klient{{else}}Edytuj klienta{{end}}</h1>
+<div class="card">
+    <form {{if .IsNew}}hx-post="/clients"{{else}}hx-put="/clients/{{.Client.ID}}"{{end}}>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="name">Imię *</label>
+                <input type="text" id="name" name="name" value="{{.Client.Name}}" required/>
+            </div>
+            <div class="form-group">
+                <label for="surname">Nazwisko *</label>
+                <input type="text" id="surname" name="surname" value="{{.Client.Surname}}" required/>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="phone">Telefon</label>
+                <input type="tel" id="phone" name="phone" value="{{if .Client.Phone.Valid}}{{.Client.Phone.String}}{{end}}"/>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" value="{{if .Client.Email.Valid}}{{.Client.Email.String}}{{end}}"/>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="comment">Komentarz</label>
+            <textarea id="comment" name="comment">{{if .Client.Comment.Valid}}{{.Client.Comment.String}}{{end}}</textarea>
+        </div>
+        <div class="form-group">
+            <label for="alert_note">⚠️ Uwaga pilna <small style="color:#94a3b8;">(wyświetli się na ekranie przy skanowaniu karty)</small></label>
+            <textarea id="alert_note" name="alert_note" placeholder="np. wziął wodę na kredyt - skasować 5 zł" style="border-color:#f59e0b;">{{.Client.AlertNote}}</textarea>
+        </div>
+        <div class="actions">
+            <button type="submit" class="btn btn-primary">{{if .IsNew}}Dodaj{{else}}Zapisz{{end}}</button>
+            <a href="/clients" hx-get="/clients" hx-target="#content" hx-push-url="true" class="btn btn-ghost">Anuluj</a>
+        </div>
+    </form>
+</div>
+{{end}}
+
+{{define "client_detail"}}
+<h1>{{.Client.Name}} {{.Client.Surname}}</h1>
+<div class="card">
+    <dl class="detail-grid">
+        <dt>Telefon</dt>
+        <dd>{{if .Client.Phone.Valid}}{{.Client.Phone.String}}{{else}}—{{end}}</dd>
+        <dt>Email</dt>
+        <dd>{{if .Client.Email.Valid}}{{.Client.Email.String}}{{else}}—{{end}}</dd>
+        <dt>RFID</dt>
+        <dd id="rfid-area">
+            {{if .Client.RfidTag.Valid}}
+                🏷 {{.Client.RfidTag.String}}
+                <button hx-post="/api/rfid/assign/{{.Client.ID}}" hx-target="#rfid-area" hx-swap="innerHTML"
+                    class="btn" style="margin-left:0.5rem; font-size:0.8rem; padding:0.2rem 0.6rem; background:#3b82f6; color:#fff; border:none; border-radius:4px; cursor:pointer;">
+                    🔄 Zmień tag
+                </button>
+            {{else}}
+                <span style="color:#94a3b8;">brak</span>
+                <button hx-post="/api/rfid/assign/{{.Client.ID}}" hx-target="#rfid-area" hx-swap="innerHTML"
+                    class="btn" style="margin-left:0.5rem; font-size:0.8rem; padding:0.2rem 0.6rem; background:#22c55e; color:#fff; border:none; border-radius:4px; cursor:pointer;">
+                    🏷 Przypisz tag
+                </button>
+            {{end}}
+        </dd>
+        <dt>Komentarz</dt>
+        <dd>{{if .Client.Comment.Valid}}{{.Client.Comment.String}}{{else}}—{{end}}</dd>
+        {{if .Client.AlertNote}}
+        <dt>⚠️ Uwaga pilna</dt>
+        <dd style="background:#fef3c7; color:#92400e; padding:0.5rem 0.75rem; border-radius:6px; border-left:4px solid #f59e0b; font-weight:600; display:flex; align-items:center; justify-content:space-between; gap:0.75rem;">
+            <span>{{.Client.AlertNote}}</span>
+            <button hx-post="/clients/{{.Client.ID}}/clear-alert" hx-target="#content" class="btn" style="background:#16a34a; color:#fff; font-size:0.8rem; padding:0.3rem 0.75rem; white-space:nowrap;">✓ Załatwione</button>
+        </dd>
+        {{end}}
+    </dl>
+    <div class="actions">
+        <a href="/clients/{{.Client.ID}}/edit" hx-get="/clients/{{.Client.ID}}/edit" hx-target="#content" hx-push-url="true" class="btn btn-primary">Edytuj</a>
+        <button hx-delete="/clients/{{.Client.ID}}" hx-confirm="Na pewno usunąć tego klienta?" class="btn btn-danger">Usuń</button>
+        <a href="/clients" hx-get="/clients" hx-target="#content" hx-push-url="true" class="btn btn-ghost">← Powrót</a>
+    </div>
+</div>
+
+<h2 style="margin-top:2rem; margin-bottom:1rem; color:#f8fafc; font-size:1.2rem;">Karnety</h2>
+
+{{if .Memberships}}
+<table>
+    <thead>
+        <tr>
+            <th>Typ</th>
+            <th>Cena</th>
+            <th>Od</th>
+            <th>Do</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Memberships}}
+        <tr>
+            <td>{{.TypeName}}</td>
+            <td>{{formatPrice .TypePrice}} zł</td>
+            <td>{{formatDate .StartsAt}}</td>
+            <td>{{formatDate .EndsAt}}</td>
+            <td>
+                {{if not .IsActive.Bool}}<span style="color:#64748b;">Nieaktywny</span>
+                {{else if .FrozenAt.Valid}}<span style="color:#60a5fa;">❄️ Zawieszony</span>
+                    <br><span style="font-size:0.75rem; color:#94a3b8;">od {{formatDate .FrozenAt}} · {{.TotalFrozenDays}}/{{.MaxFreezeDays}} dni</span>
+                {{else if isExpired .EndsAt}}<span style="color:#f87171;">Wygasł</span>
+                {{else}}<span style="color:#4ade80;">Aktywny</span>
+                {{end}}
+            </td>
+            <td style="white-space:nowrap;">
+                {{if and .IsActive.Bool (not (isExpired .EndsAt))}}
+                    {{if .FrozenAt.Valid}}
+                    <button class="btn btn-ghost" style="font-size:0.8rem; padding:0.25rem 0.5rem; color:#60a5fa;"
+                        hx-post="/clients/{{$.Client.ID}}/memberships/{{.ID}}/unfreeze"
+                        hx-target="#content"
+                        hx-confirm="Odwiesić karnet?">❄️ Odwieś</button>
+                    {{else if gt .MaxFreezeDays 0}}
+                        {{if lt .TotalFrozenDays .MaxFreezeDays}}
+                    <details style="display:inline;">
+                        <summary class="btn btn-ghost" style="font-size:0.8rem; padding:0.25rem 0.5rem; color:#60a5fa; list-style:none; cursor:pointer;">❄️ Zawieś</summary>
+                        <form hx-post="/clients/{{$.Client.ID}}/memberships/{{.ID}}/freeze" hx-target="#content"
+                              style="position:absolute; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:0.75rem; z-index:100; margin-top:0.25rem; display:flex; flex-direction:column; gap:0.5rem;">
+                            <label style="font-size:0.75rem; color:#94a3b8;">Od
+                                <input type="date" name="freeze_from" required style="display:block; margin-top:2px; padding:0.25rem; border-radius:4px; border:1px solid #475569; background:#0f172a; color:#fff;">
+                            </label>
+                            <label style="font-size:0.75rem; color:#94a3b8;">Do
+                                <input type="date" name="freeze_until" required style="display:block; margin-top:2px; padding:0.25rem; border-radius:4px; border:1px solid #475569; background:#0f172a; color:#fff;">
+                            </label>
+                            <span style="font-size:0.7rem; color:#64748b;">Pozostało {{sub .MaxFreezeDays .TotalFrozenDays}} dni</span>
+                            <button type="submit" class="btn" style="background:#3b82f6; color:#fff; font-size:0.8rem; padding:0.3rem 0.75rem;">Zatwierdź</button>
+                        </form>
+                    </details>
+                        {{end}}
+                    {{end}}
+                <button class="btn btn-ghost" style="font-size:0.8rem; padding:0.25rem 0.5rem;"
+                    hx-post="/clients/{{$.Client.ID}}/memberships/{{.ID}}/deactivate"
+                    hx-target="#content"
+                    hx-confirm="Dezaktywować ten karnet?">Dezaktywuj</button>
+                {{end}}
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p style="color:#64748b; padding:1rem 0;">Brak karnetów</p>
+{{end}}
+
+{{if .ActiveTypes}}
+<div class="card" style="margin-top:1.5rem;">
+    <h3 style="margin-bottom:1rem; color:#f8fafc; font-size:1rem;">Dodaj karnet</h3>
+    <form method="POST" action="/clients/{{.Client.ID}}/memberships"
+          hx-post="/clients/{{.Client.ID}}/memberships" hx-target="#content">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="type_id">Typ karnetu</label>
+                <select id="type_id" name="type_id" required>
+                    {{range .ActiveTypes}}
+                    <option value="{{.ID}}">{{.Name}} — {{formatPrice .Price}} zł ({{.DurationValue}} {{if eq .DurationUnit "day"}}dni{{else if eq .DurationUnit "month"}}mies.{{else}}lat{{end}})</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="starts_at">Data rozpoczęcia</label>
+                <input type="date" id="starts_at" name="starts_at" value="{{today}}" required/>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Dodaj karnet</button>
+    </form>
+</div>
+{{end}}
+
+<h2 style="margin-top:2rem; margin-bottom:1rem; color:#f8fafc; font-size:1.2rem;">Płatności</h2>
+{{if .Payments}}
+<table>
+    <thead>
+        <tr>
+            <th>Karnet</th>
+            <th>Kwota</th>
+            <th>Termin</th>
+            <th>Status</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Payments}}
+        <tr>
+            <td>{{.TypeName}}</td>
+            <td>{{formatPrice .Amount}} zł</td>
+            <td>{{formatDate .DueDate}}</td>
+            <td>{{if .PaidAt.Valid}}<span style="color:#4ade80;">Opłacono {{.PaidAt.Time.Format "02.01.2006"}}</span>{{else if isExpired .DueDate}}<span style="color:#ef4444;">Zaległe</span>{{else}}<span style="color:#facc15;">Oczekuje</span>{{end}}</td>
+            <td>{{if not .PaidAt.Valid}}<button class="btn btn-primary" style="font-size:0.8rem; padding:0.25rem 0.5rem;"
+                hx-post="/payments/{{.ID}}/pay"
+                hx-target="#content">Opłacono</button>{{else}}—{{end}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p style="color:#64748b;">Brak płatności</p>
+{{end}}
+
+<h2 style="margin-top:2rem; margin-bottom:1rem; color:#f8fafc; font-size:1.2rem;">Wejścia <span class="count">({{.EntryCount}})</span></h2>
+<div style="margin-bottom:1rem;">
+    <button class="btn btn-primary" style="font-size:0.85rem;"
+        hx-post="/clients/{{.Client.ID}}/entries"
+        hx-target="#content">+ Zarejestruj wejście</button>
+</div>
+{{if .Entries}}
+<table>
+    <thead>
+        <tr>
+            <th>Data i godzina</th>
+            <th>Metoda</th>
+            <th>Zarejestrował</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Entries}}
+        <tr>
+            <td>{{.CreatedAt.Time.Format "02.01.2006 15:04"}}</td>
+            <td>{{if eq .Method.String "rfid"}}🏷 RFID{{else if eq .Method.String "manual"}}✋ Ręcznie{{else}}{{.Method.String}}{{end}}</td>
+            <td>{{if .RecordedByName}}{{.RecordedByName}}{{else}}—{{end}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p style="color:#64748b;">Brak wejść</p>
+{{end}}
+{{end}}

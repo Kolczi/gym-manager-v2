@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=gym-manager-v2
+Exec=gym-manager-v2
+Icon=gym-manager-v2
+Categories=Development;
+Terminal=false
+Keywords=wails
+Version=1.0
+StartupNotify=false

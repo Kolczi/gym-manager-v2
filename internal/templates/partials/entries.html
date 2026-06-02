@@ -1,0 +1,25 @@
+{{define "entries_today"}}
+<h1>Wejścia dziś <span class="count">({{.Count}})</span></h1>
+{{if .Entries}}
+<table>
+    <thead>
+        <tr>
+            <th>Godzina</th>
+            <th>Klient</th>
+            <th>Metoda</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Entries}}
+        <tr style="cursor:pointer;" hx-get="/clients/{{.ClientID}}" hx-target="#content" hx-push-url="true">
+            <td>{{.CreatedAt.Time.Format "15:04:05"}}</td>
+            <td>{{.ClientName}} {{.ClientSurname}}</td>
+            <td>{{if eq .Method.String "rfid"}}🏷 RFID{{else if eq .Method.String "manual"}}✋ Ręcznie{{else}}{{.Method.String}}{{end}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p style="color:#64748b; padding:2rem 0; text-align:center;">Brak wejść na dziś</p>
+{{end}}
+{{end}}

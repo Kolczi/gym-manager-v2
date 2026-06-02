@@ -1,0 +1,74 @@
+{{define "user_list"}}
+<h1>Użytkownicy <span class="count">({{.Count}})</span></h1>
+<div style="margin-bottom:1rem;">
+    <a href="/users/new" hx-get="/users/new" hx-target="#content" hx-push-url="true" class="btn btn-primary">+ Dodaj użytkownika</a>
+</div>
+{{if .Users}}
+<table>
+    <thead>
+        <tr>
+            <th>Login</th>
+            <th>Imię</th>
+            <th>Nazwisko</th>
+            <th>Rola</th>
+            <th>Utworzony</th>
+            <th>Akcje</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Users}}
+        <tr>
+            <td><strong>{{.Login}}</strong></td>
+            <td>{{.Name}}</td>
+            <td>{{.Surname}}</td>
+            <td>{{if eq .Role "admin"}}<span style="color:#f59e0b;">👑 Admin</span>{{else}}<span style="color:#94a3b8;">Pracownik</span>{{end}}</td>
+            <td>{{.CreatedAt.Time.Format "02.01.2006"}}</td>
+            <td>
+                <a href="/users/{{.ID}}/edit" hx-get="/users/{{.ID}}/edit" hx-target="#content" hx-push-url="true" class="btn" style="font-size:0.8rem; padding:0.25rem 0.5rem;">Edytuj</a>
+                <button class="btn btn-danger" style="font-size:0.8rem; padding:0.25rem 0.5rem;"
+                    hx-delete="/users/{{.ID}}" hx-confirm="Usunąć użytkownika {{.Login}}?"
+                    hx-target="#content">Usuń</button>
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p style="color:#64748b;">Brak użytkowników</p>
+{{end}}
+{{end}}
+
+{{define "user_form"}}
+<h1>{{if .EditUser}}Edycja: {{.EditUser.Name}} {{.EditUser.Surname}}{{else}}Nowy użytkownik{{end}}</h1>
+<div class="card" style="max-width:500px;">
+    <form {{if .EditUser}}hx-put="/users/{{.EditUser.ID}}"{{else}}hx-post="/users"{{end}} hx-target="#content">
+        <div class="form-group">
+            <label for="login">Login</label>
+            <input type="text" id="login" name="login" value="{{if .EditUser}}{{.EditUser.Login}}{{end}}" required {{if .EditUser}}disabled{{end}}/>
+        </div>
+        <div class="form-group">
+            <label for="name">Imię</label>
+            <input type="text" id="name" name="name" value="{{if .EditUser}}{{.EditUser.Name}}{{end}}" required/>
+        </div>
+        <div class="form-group">
+            <label for="surname">Nazwisko</label>
+            <input type="text" id="surname" name="surname" value="{{if .EditUser}}{{.EditUser.Surname}}{{end}}" required/>
+        </div>
+        <div class="form-group">
+            <label for="role">Rola</label>
+            <select id="role" name="role">
+                <option value="user" {{if and .EditUser (eq .EditUser.Role "user")}}selected{{end}}>Pracownik</option>
+                <option value="admin" {{if and .EditUser (eq .EditUser.Role "admin")}}selected{{end}}>Admin</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="password">Hasło{{if .EditUser}} (zostaw puste aby nie zmieniać){{end}}</label>
+            <input type="password" id="password" name="password" {{if not .EditUser}}required{{end}}/>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{if .EditUser}}Zapisz{{else}}Utwórz{{end}}</button>
+            <a href="/users" hx-get="/users" hx-target="#content" hx-push-url="true" class="btn">Anuluj</a>
+        </div>
+    </form>
+</div>
+{{end}}
