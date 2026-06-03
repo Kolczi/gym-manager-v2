@@ -31,7 +31,7 @@ func (h *BackupHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	entries, _ := os.ReadDir(dir)
 	for _, e := range entries {
-		if !e.IsDir() && strings.HasPrefix(e.Name(), "gym_manager_") && strings.HasSuffix(e.Name(), ".sql.gz") {
+		if !e.IsDir() && strings.HasPrefix(e.Name(), "gym_manager_") && strings.HasSuffix(e.Name(), ".db.gz") {
 			info, _ := e.Info()
 			size := "?"
 			if info != nil {
@@ -45,7 +45,7 @@ func (h *BackupHandler) List(w http.ResponseWriter, r *http.Request) {
 			name := e.Name()
 			date := ""
 			parts := strings.TrimPrefix(name, "gym_manager_")
-			parts = strings.TrimSuffix(parts, ".sql.gz")
+			parts = strings.TrimSuffix(parts, ".db.gz")
 			if len(parts) >= 15 {
 				date = parts[6:8] + "." + parts[4:6] + "." + parts[0:4] + " " + parts[9:11] + ":" + parts[11:13]
 			}
@@ -75,7 +75,7 @@ func (h *BackupHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cmd := exec.Command("bash", scriptPath)
-	cmd.Env = append(os.Environ(), "GYM_DB_NAME=gym_manager")
+	cmd.Env = os.Environ()
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		http.Error(w, "Backup failed: "+string(out), 500)
