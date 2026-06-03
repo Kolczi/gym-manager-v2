@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -54,7 +55,13 @@ func (h *MembershipHandler) Create(w http.ResponseWriter, r *http.Request) {
 		NewEndsAt:   endsAt.Format("2006-01-02"),
 	})
 	if err == nil && hasOverlap {
-		http.Error(w, "Klient ma już aktywny karnet w tym okresie. Dezaktywuj obecny lub ustaw datę rozpoczęcia na przyszłość.", 409)
+		errMsg := "Klient ma już aktywny karnet w tym okresie. Dezaktywuj obecny lub ustaw datę rozpoczęcia na przyszłość."
+		if r.Header.Get("HX-Request") == "true" {
+			w.Header().Set("HX-Trigger", `{"showError":"`+errMsg+`"}`)
+			http.Error(w, errMsg, 409)
+		} else {
+			http.Redirect(w, r, fmt.Sprintf("/clients/%d?error=%s", clientID, url.QueryEscape(errMsg)), http.StatusSeeOther)
+		}
 		return
 	}
 

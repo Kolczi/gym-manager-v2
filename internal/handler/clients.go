@@ -145,6 +145,7 @@ func (h *ClientHandler) Show(w http.ResponseWriter, r *http.Request) {
 		"Entries":         entries,
 		"EntryCount":      entryCount,
 		"Payments":        payments,
+		"ErrorMsg":        r.URL.Query().Get("error"),
 		"ContentTemplate": "client_detail",
 	}
 	if r.Header.Get("HX-Request") == "true" {
