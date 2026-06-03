@@ -3,7 +3,7 @@ VERSION  := $(shell git describe --tags --always --dirty 2>/dev/null || echo "de
 BUILD    := $(shell date -u +%Y%m%d%H%M%S)
 LDFLAGS  := -s -w -X main.version=$(VERSION) -X main.build=$(BUILD)
 
-.PHONY: all build web migrate-mongo clean deb dev test
+.PHONY: all build web migrate-mongo clean deb dev test release
 
 all: build web
 
@@ -78,3 +78,18 @@ deb: web
 ## Clean build artifacts
 clean:
 	rm -rf bin/
+
+## Build all release artifacts
+dist: web migrate-mongo
+	@echo "Release artifacts in bin/"
+	@ls -lh bin/
+
+## Tag + GitHub Release with all binaries
+## Usage: make release TAG=v0.2.0
+release: dist
+	@test -n "$(TAG)" || (echo "Usage: make release TAG=v0.2.0" && exit 1)
+	git tag -a $(TAG) -m "Release $(TAG)"
+	git push origin $(TAG)
+	gh release create $(TAG) bin/gym-web bin/migrate-mongo \
+		--title "$(TAG)" \
+		--generate-notes
