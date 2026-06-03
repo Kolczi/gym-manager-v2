@@ -43,6 +43,8 @@
         .form-group { margin-bottom: 1rem; }
         .form-group label { display: block; margin-bottom: 0.25rem; color: #94a3b8; font-size: 0.85rem; }
         .form-group input, .form-group textarea, .form-group select { width: 100%; }
+        .form-group input[type="checkbox"] { width: auto; margin-right: 0.5rem; vertical-align: middle; }
+        .form-group label:has(input[type="checkbox"]) { display: flex; align-items: center; cursor: pointer; }
         .form-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
         .card { background: #1e293b; border-radius: 8px; padding: 1.5rem; border: 1px solid #334155; }
@@ -72,7 +74,7 @@
         </div>
     </nav>
     <main>
-        <div id="content">
+        <div id="content" hx-history-elt>
             {{callTemplate .ContentTemplate .}}
         </div>
     </main>
@@ -143,6 +145,8 @@
     <script>
     // Abort previous in-flight request targeting #content
     (function() {
+        if (window._gymAbortSetup) return;
+        window._gymAbortSetup = true;
         var activeXhr = null;
         document.addEventListener('htmx:beforeRequest', function(e) {
             if (e.detail.target && e.detail.target.id === 'content') {
@@ -162,7 +166,10 @@
 
     <script>
     (function() {
+        // Prevent duplicate SSE connections on history restore
+        if (window._gymRfidES) return;
         var es = new EventSource('/api/rfid/events');
+        window._gymRfidES = es;
         var container = document.getElementById('rfid-toasts');
 
         es.addEventListener('scan', function(e) {

@@ -1,5 +1,6 @@
 # Binaries
 bin/
+migrate-mongo
 gym-manager-v2
 web
 

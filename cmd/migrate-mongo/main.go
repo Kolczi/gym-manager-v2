@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -10,8 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -22,15 +22,15 @@ import (
 
 // MongoDB document shapes
 type MongoClient struct {
-	ID      bson.ObjectID `bson:"_id"`
-	Name    string        `bson:"name"`
-	Surname string        `bson:"surname"`
-	Phone   string        `bson:"phone"`
-	Mail    string        `bson:"mail"`
-	Comment string        `bson:"comment"`
-	RfidTag string        `bson:"rfidTag"`
+	ID      bson.ObjectID          `bson:"_id"`
+	Name    string                 `bson:"name"`
+	Surname string                 `bson:"surname"`
+	Phone   string                 `bson:"phone"`
+	Mail    string                 `bson:"mail"`
+	Comment string                 `bson:"comment"`
+	RfidTag string                 `bson:"rfidTag"`
 	Carnet  *MongoCarnetAssignment `bson:"carnet"`
-	Entries []MongoEntry  `bson:"entries"`
+	Entries []MongoEntry           `bson:"entries"`
 }
 
 type MongoCarnetAssignment struct {
@@ -74,9 +74,9 @@ func main() {
 		mongoDB = "gymManager"
 	}
 
-	pgURL := os.Getenv("DATABASE_URL")
-	if pgURL == "" {
-		log.Fatal("DATABASE_URL required")
+	dbPath := os.Getenv("DATABASE_PATH")
+	if dbPath == "" {
+		log.Fatal("DATABASE_PATH required (e.g. data/gym.db)")
 	}
 
 	ctx := context.Background()
@@ -90,14 +90,14 @@ func main() {
 	db := mongoClient.Database(mongoDB)
 	fmt.Printf("Connected to MongoDB: %s/%s\n", mongoURI, mongoDB)
 
-	// Connect PostgreSQL
-	pool, err := pgxpool.New(ctx, pgURL)
+	// Connect SQLite
+	sqliteDB, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_foreign_keys=on")
 	if err != nil {
-		log.Fatalf("PostgreSQL connect: %v", err)
+		log.Fatalf("SQLite open: %v", err)
 	}
-	defer pool.Close()
-	queries := store.New(pool)
-	fmt.Println("Connected to PostgreSQL")
+	defer sqliteDB.Close()
+	queries := store.New(sqliteDB)
+	fmt.Printf("Connected to SQLite: %s\n", dbPath)
 
 	// --- Migrate Users ---
 	fmt.Println("\n=== Migrating Users ===")
@@ -107,12 +107,11 @@ func main() {
 
 	userCount := 0
 	for _, mu := range mongoUsers {
-		// SHA256 passwords stay as-is — dual-check in auth handles them
 		_, err := queries.CreateUser(ctx, store.CreateUserParams{
 			Login:        strings.ToLower(mu.Login),
 			PasswordHash: mu.Password,
 			Name:         mu.Name,
-			Surname:      pgtype.Text{String: mu.Surname, Valid: mu.Surname != ""},
+			Surname:      mu.Surname,
 			Role:         mu.Role,
 		})
 		if err != nil {
@@ -130,16 +129,17 @@ func main() {
 	var mongoCarnets []MongoCarnet
 	carnetCur.All(ctx, &mongoCarnets)
 
-	carnetMap := map[string]int32{} // mongo _id hex → pg id
+	carnetMap := map[string]int64{} // mongo _id hex → sqlite id
 	carnetCount := 0
 	for _, mc := range mongoCarnets {
-		durationDays := parseDuration(mc.Duration)
+		durationValue, durationUnit := parseDuration(mc.Duration)
 		mt, err := queries.CreateMembershipType(ctx, store.CreateMembershipTypeParams{
-			Name:         mc.Name,
-			DurationDays: int32(durationDays),
-			Price:        pgtype.Numeric{Valid: mc.Price > 0},
-			Description:  pgtype.Text{String: mc.Description, Valid: mc.Description != ""},
-			IsActive:     pgtype.Bool{Bool: true, Valid: true},
+			Name:          mc.Name,
+			DurationValue: durationValue,
+			DurationUnit:  durationUnit,
+			Price:         mc.Price,
+			Description:   nullString(mc.Description),
+			IsActive:      sql.NullInt64{Int64: 1, Valid: true},
 		})
 		if err != nil {
 			fmt.Printf("  SKIP carnet %s: %v\n", mc.Name, err)
@@ -147,7 +147,7 @@ func main() {
 		}
 		carnetMap[mc.ID.Hex()] = mt.ID
 		carnetCount++
-		fmt.Printf("  + type: %s (%dd)\n", mc.Name, durationDays)
+		fmt.Printf("  + type: %s (%d %s)\n", mc.Name, durationValue, durationUnit)
 	}
 	fmt.Printf("  → %d membership types migrated\n", carnetCount)
 
@@ -162,10 +162,9 @@ func main() {
 		client, err := queries.CreateClient(ctx, store.CreateClientParams{
 			Name:    mc.Name,
 			Surname: mc.Surname,
-			Email:   textOrNull(mc.Mail),
-			Phone:   textOrNull(mc.Phone),
-			Comment: textOrNull(mc.Comment),
-			RfidTag: textOrNull(mc.RfidTag),
+			Email:   nullString(mc.Mail),
+			Phone:   nullString(mc.Phone),
+			Comment: nullString(mc.Comment),
 		})
 		if err != nil {
 			fmt.Printf("  SKIP client %s %s: %v\n", mc.Name, mc.Surname, err)
@@ -181,8 +180,8 @@ func main() {
 			}
 			_, err := queries.CreateEntry(ctx, store.CreateEntryParams{
 				ClientID:   client.ID,
-				RecordedBy: pgtype.Int4{},
-				Method:     pgtype.Text{String: method, Valid: true},
+				RecordedBy: sql.NullInt64{},
+				Method:     nullString(method),
 			})
 			if err == nil {
 				entryCount++
@@ -193,12 +192,16 @@ func main() {
 		if mc.Carnet != nil {
 			typeID, ok := carnetMap[mc.Carnet.CarnetID.Hex()]
 			if ok {
+				isActive := int64(0)
+				if mc.Carnet.EndDate.After(time.Now()) {
+					isActive = 1
+				}
 				_, err := queries.CreateMembership(ctx, store.CreateMembershipParams{
-					ClientID:         client.ID,
-					MembershipTypeID: typeID,
-					StartsAt:         pgtype.Date{Time: mc.Carnet.StartDate, Valid: true},
-					EndsAt:           pgtype.Date{Time: mc.Carnet.EndDate, Valid: true},
-					IsActive:         pgtype.Bool{Bool: mc.Carnet.EndDate.After(time.Now()), Valid: true},
+					ClientID: client.ID,
+					TypeID:   typeID,
+					StartsAt: mc.Carnet.StartDate.Format("2006-01-02"),
+					EndsAt:   mc.Carnet.EndDate.Format("2006-01-02"),
+					IsActive: sql.NullInt64{Int64: isActive, Valid: true},
 				})
 				if err == nil {
 					membershipCount++
@@ -217,27 +220,33 @@ func main() {
 	fmt.Printf("Memberships: %d\n", membershipCount)
 }
 
-func parseDuration(s string) int {
-	// "30d" → 30, "1m" → 30, "3m" → 90, etc.
+func parseDuration(s string) (int64, string) {
+	// "30d" → (30, "days"), "1m" → (1, "months"), "3m" → (3, "months")
 	s = strings.TrimSpace(strings.ToLower(s))
 	if strings.HasSuffix(s, "d") {
-		n := 0
+		var n int
 		fmt.Sscanf(s, "%dd", &n)
-		return n
+		if n == 0 {
+			n = 30
+		}
+		return int64(n), "days"
 	}
 	if strings.HasSuffix(s, "m") {
-		n := 0
+		var n int
 		fmt.Sscanf(s, "%dm", &n)
-		return n * 30
+		if n == 0 {
+			n = 1
+		}
+		return int64(n), "months"
 	}
-	return 30
+	return 30, "days"
 }
 
-func textOrNull(s string) pgtype.Text {
+func nullString(s string) sql.NullString {
 	if s == "" {
-		return pgtype.Text{Valid: false}
+		return sql.NullString{Valid: false}
 	}
-	return pgtype.Text{String: s, Valid: true}
+	return sql.NullString{String: s, Valid: true}
 }
 
 // sha256Hash for reference/verification
