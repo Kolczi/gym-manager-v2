@@ -29,6 +29,7 @@ var templateFS embed.FS
 
 func main() {
 	_ = godotenv.Load()
+	ensureEnvFile()
 
 	dbPath := os.Getenv("DATABASE_PATH")
 	if dbPath == "" {
